@@ -8,21 +8,21 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * A context that loads its members from a YAML file
+ * A context that loads its members from a properties file
  */
 public class PropertyFileContext extends AbstractContext {
 
   private URL configuration;
   private Properties properties;
 
-  public PropertyFileContext(LisaContext parent, SailEvaluator<?, ?> owner, URL configuration) {
-    super(parent, owner);
+  public PropertyFileContext(EvaluationContext parent, URL configuration) {
+    super(parent);
     this.configuration = configuration;
     try (InputStream is = configuration.openStream()) {
-      Properties properties = new Properties();
+      properties = new Properties();
       properties.load(is);
     } catch (IOException e) {
-      throw new LisaError("Failed to load properties from " + configuration, e);
+      throw new EvaluationError("Failed to load properties from " + configuration, e);
     }
   }
 
@@ -47,4 +47,19 @@ public class PropertyFileContext extends AbstractContext {
     }
     return parent().flatMap(p -> p.resolve(key));
   }
+
+  @Override
+  public boolean containsKey(String key) {
+    return properties.containsKey(key);
+  }
 }
+
+/*
+module(
+  imports(com.appian.a, com.appian.fn),
+  com.lisa.properties: fn.with(
+     data: io.read("configuration.properties"),
+     a.unwrap(data)
+  )
+)
+ */

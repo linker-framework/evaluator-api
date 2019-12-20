@@ -3,13 +3,11 @@ package com.onkiup.linker.evaluator.api;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import com.onkiup.linker.parser.NonParseable;
 import com.onkiup.linker.parser.ParserContext;
 import com.onkiup.linker.parser.TokenGrammar;
-import com.onkiup.linker.parser.annotation.IgnoreVariant;
 import com.onkiup.linker.util.TypeUtils;
 
 /**
@@ -20,11 +18,31 @@ import com.onkiup.linker.util.TypeUtils;
  * Invoker connectorInvoker = Connector.to(connectedMethod).as(Invoker.class);
  */
 public interface Connector<X, R> extends NonParseable {
+
+  /**
+   * Holds references to all defined connectors
+   */
   class Metadata {
+    /**
+     * Connector definitions
+     */
     private static Map<Class, Class<? extends Connector>> connectorTypes = null;
-    private static final Map<Object, Connector> connectors = Collections.synchronizedMap(new HashMap<>()); 
+    /**
+     * Connector instances per objects they connect to
+     */
+    private static final Map<Object, Connector> connectors = Collections.synchronizedMap(new HashMap<>());
+    /**
+     * Connected objects per their connectors
+     */
     private static final Map<Connector, Object> connected = Collections.synchronizedMap(new HashMap<>());
 
+    /**
+     * Resolves connectors according to their targets
+     * @param target target object for which this method should return a connector
+     * @param <X> type of the target
+     * @param <R> type of the connector
+     * @return existing or new connector that can handle the given target
+     */
     static <X, R> Connector<X, R> connector(X target) {
       if (target == null) {
         return null;
@@ -64,6 +82,13 @@ public interface Connector<X, R> extends NonParseable {
     }
   }
 
+  /**
+   * Resolves connectors according to their targets
+   * @param target target object for which this method should return a connector
+   * @param <X> type of the target
+   * @param <R> type of the connector
+   * @return existing or new connector that can handle the given target
+   */
   public static <X, R> Connector<X, R> to(X target) {
     return Metadata.connector(target);
   }

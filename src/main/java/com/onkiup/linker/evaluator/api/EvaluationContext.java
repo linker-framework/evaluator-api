@@ -5,11 +5,13 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
 
-import com.onkiup.linker.evaluator.api.Evaluator;
 import com.onkiup.linker.parser.token.PartialToken;
 import com.onkiup.linker.util.SafeConsumer;
 import com.onkiup.linker.util.SafeFunction;
 
+/**
+ * Common interface for all linker connectors
+ */
 public interface EvaluationContext extends AutoCloseable {
 
   /**
@@ -42,12 +44,12 @@ public interface EvaluationContext extends AutoCloseable {
   /**
    * @return Rule Evaluator that created this context
    */
-  Evaluator owner();
+  Optional<Evaluator> owner();
 
   /**
    * @return Rule Evaluator that injected this context into the stack
    */
-  Invoker invoker();
+  Optional<Invoker> invoker();
 
   void parent(EvaluationContext context);
   boolean containsKey(String key);
@@ -137,16 +139,17 @@ public interface EvaluationContext extends AutoCloseable {
   }
 
   default StackTraceElement asStackTraceElement() {
-    Evaluator<?, ?> owner = owner();
-    Invoker<?, ?> invoker = invoker();
-    if (owner == null) {
+    Evaluator<?, ?> owner = owner().orElse(null);
+    Invoker<?, ?> invoker = invoker().orElse(null);
+    if (owner == null || invoker == null) {
       return null;
     } else {
       try {
         PartialToken ownerMeta = owner.metadata().get();
         PartialToken invokerMeta = invoker.metadata().get();
-        return new StackTraceElement(owner.getClass().getSimpleName(), "..", meta.location().name(),
-            meta.location().line());
+        // TODO: validate the stacktraces, write docs on them and adjust this accordingly
+        return new StackTraceElement(ownerMeta.location().name(), "..", invokerMeta.location().name(),
+            invokerMeta.location().line());
       } catch (Exception e) {
         return new StackTraceElement(owner.getClass().getSimpleName(), "..", "??", 0);
       }

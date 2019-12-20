@@ -10,9 +10,9 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.onkiup.linker.evaluator.api.Evaluator;
-import com.onkiup.linker.parser.Rule;
-
+/**
+ * Evaluation context that stores its members in memory
+ */
 public class MemoryContext extends AbstractContext {
   private static final Logger logger = LoggerFactory.getLogger(MemoryContext.class);
 
@@ -22,6 +22,11 @@ public class MemoryContext extends AbstractContext {
 
   public MemoryContext(EvaluationContext parent, Evaluator owner) {
     super(parent, owner);
+  }
+
+  public MemoryContext(EvaluationContext parent, Map<String, Object> constants) {
+    this(parent);
+    this.constants.putAll(constants);
   }
 
   public MemoryContext(EvaluationContext parent) {
@@ -62,7 +67,7 @@ public class MemoryContext extends AbstractContext {
     ConcurrentHashMap<String, Object> target = modifiable ? values : constants;
 
     if (constants.containsKey(key) && !override) {
-      throw new EvaluationError(creator(), "Unable to override existing context constant '" + key + "'");
+      throw new EvaluationError(invoker().orElse(null), "Unable to override existing context constant '" + key + "'");
     }
 
     if (value == null) {

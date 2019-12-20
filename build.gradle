@@ -40,6 +40,7 @@ dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.28'
     implementation group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.28'
     implementation 'com.google.guava:guava:27.0.1-jre'
+    implementation group: 'org.yaml', name: 'snakeyaml', version: '1.25'
 
     compileOnly "com.onkiup:linker-parser:${project.version}"
     compileOnly "com.onkiup:linker-parser-api:${project.version}"
