@@ -105,7 +105,7 @@ public interface Connector<X, R> extends NonParseable {
   /**
    * @return types of arguments accepted by connected method with varargs represented as last argument of array type
    */
-  Class[] arguments();
+  Class[] parameters();
 
   /**
    * @return the return type of the connected method 

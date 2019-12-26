@@ -1,5 +1,6 @@
-package com.onkiup.linker.evaluator.api;
+package com.onkiup.linker.evaluator.common;
 
+import com.onkiup.linker.evaluator.api.EvaluationContext;
 import com.onkiup.linker.parser.Extension;
 import com.onkiup.linker.parser.ParserLocation;
 import com.onkiup.linker.parser.Rule;
@@ -13,6 +14,14 @@ public class EvaluationError extends RuntimeException {
    * Locaion in evaluated code that caused this exception
    */
   private ParserLocation location;
+
+  public EvaluationError(String message) {
+    this(message, null);
+  }
+
+  public EvaluationError(String message, Throwable cause) {
+    this(EvaluationContext.currentToken().location(), message, cause);
+  }
 
   public EvaluationError(ParserLocation location, String message, Throwable cause) {
     super(message, cause);
@@ -38,14 +47,6 @@ public class EvaluationError extends RuntimeException {
 
   public EvaluationError(Extension source, String message) {
     this(source == null ? ParserLocation.ZERO : source.base().location(), message);
-  }
-
-  public EvaluationError(String message) {
-    this(ParserLocation.ZERO, message);
-  }
-
-  public EvaluationError(String message, Throwable cause) {
-    this(ParserLocation.ZERO, message);
   }
 
   /**

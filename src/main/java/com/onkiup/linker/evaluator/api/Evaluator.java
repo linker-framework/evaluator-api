@@ -1,14 +1,12 @@
 package com.onkiup.linker.evaluator.api;
 
-import com.onkiup.linker.parser.Extension;
-import com.onkiup.linker.parser.Rule;
+import com.onkiup.linker.util.TypeUtils;
 
 /**
- * Common interface for language element evaluators
- * @param <X> type of language elements to which this evaluator can be applied
+ * Common interface for representing operands
  * @param <O> expected type for evaluation result
  */
-public interface Evaluator<X extends Rule, O> extends Extension<X> {
+public interface Evaluator<O> {
   /**
    * A stub method for evaluator implementations
    * @return evaluation result
@@ -21,5 +19,9 @@ public interface Evaluator<X extends Rule, O> extends Extension<X> {
    */
   default O value() {
     return evaluate();
+  }
+
+  default Class<O> resultType() {
+    return (Class<O>)TypeUtils.typeParameter(getClass(), Evaluator.class, 0);
   }
 }

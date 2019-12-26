@@ -7,6 +7,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.onkiup.linker.evaluator.common.PropertyFileContext;
+
 public class PropertyFileContextTest {
 
   private PropertyFileContext subject;

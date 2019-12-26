@@ -2,21 +2,23 @@ package com.onkiup.linker.evaluator.common;
 
 import java.lang.reflect.Array;
 
-import com.onkiup.linker.evaluator.api.EvaluationError;
+import com.onkiup.linker.evaluator.api.Cacheable;
 import com.onkiup.linker.evaluator.api.Evaluator;
 import com.onkiup.linker.evaluator.api.Invoker;
 import com.onkiup.linker.evaluator.api.Connector;
+import com.onkiup.linker.parser.Extension;
+import com.onkiup.linker.util.TypeUtils;
 
 /**
  * A class that invokes FFI connectors
  */
-public class ConnectorInvoker<T, R> implements Invoker<Connector<T, R>, R> {
+public class ConnectorInvoker<T, R> implements Invoker<R>, Extension<Connector<T, R>> {
 
   @Override
-  public R invoke(Evaluator... arguments) {
+  public R execute(Evaluator... arguments) {
     Connector<T, R> connector = base();
 
-    Class[] targetArgumentTypes = connector.arguments();
+    Class[] targetArgumentTypes = connector.parameters();
     Object[] targetArguments = new Object[targetArgumentTypes.length];
 
     int last = targetArgumentTypes.length - 1;
@@ -36,17 +38,26 @@ public class ConnectorInvoker<T, R> implements Invoker<Connector<T, R>, R> {
           throw new IllegalStateException("Too many arguments provided to invoke '"+ connector+"'");
         }
       } else if (arguments[i] != null) {
-        argument = arguments[i].to(targetArgumentType);
+        argument = TypeUtils.convert(targetArgumentType, arguments[i].value());
       }
 
       targetArguments[i] = argument;
     }
 
     try {
-      return (R) connector.invoke(targetArguments);
+      if (connector instanceof Cacheable && ((Cacheable)connector).present()) {
+        return ((Cacheable<R>)connector).cached();
+      }
+
+      return base().invoke(targetArguments);
     } catch (Exception e) {
       throw new EvaluationError(this, "Failed to invoke connector '"+connector+"'", e);
     }
+  }
+
+  @Override
+  public R invoke(Evaluator... arguments) {
+    return execute(arguments);
   }
 
   private Object collectVarArg(Class targetType, Evaluator[] arguments, int position) {
@@ -59,7 +70,7 @@ public class ConnectorInvoker<T, R> implements Invoker<Connector<T, R>, R> {
       Evaluator argument = arguments[i];
       Object targetArgument = null;
       if (argument != null) {
-        targetArgument = argument.to(targetType);
+        targetArgument = TypeUtils.convert(targetType.getComponentType(), argument.value());
       }
       Array.set(result, i - position, targetArgument);
     }

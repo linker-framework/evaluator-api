@@ -9,7 +9,7 @@ import com.onkiup.linker.evaluator.api.Connector;
 public class JavaConnector<R> implements Connector<Method, R> {
 
   @Override
-  public Class[] arguments() {
+  public Class[] parameters() {
     Method base = base();
     return base.getParameterTypes();
   }

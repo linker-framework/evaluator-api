@@ -1,4 +1,4 @@
-package com.onkiup.linker.evaluator.api;
+package com.onkiup.linker.evaluator.common;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,10 +7,12 @@ import java.net.URL;
 import java.util.Optional;
 import java.util.Properties;
 
+import com.onkiup.linker.evaluator.api.EvaluationContext;
+
 /**
  * A context that loads its members from a properties file
  */
-public class PropertyFileContext extends AbstractContext {
+public class PropertyFileContext extends AbstractContext<String> {
 
   private URL configuration;
   private Properties properties;
@@ -27,7 +29,7 @@ public class PropertyFileContext extends AbstractContext {
   }
 
   @Override
-  public Optional<?> resolve(String key) {
+  public Optional<?> resolveLocally(String key) {
     if (super.containsKey(key)) {
       return super.resolve(key);
     }
@@ -45,7 +47,7 @@ public class PropertyFileContext extends AbstractContext {
         return Optional.ofNullable(value);
       }
     }
-    return parent().flatMap(p -> p.resolve(key));
+    return Optional.empty();
   }
 
   @Override

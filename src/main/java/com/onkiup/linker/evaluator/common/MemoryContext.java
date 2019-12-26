@@ -1,4 +1,4 @@
-package com.onkiup.linker.evaluator.api;
+package com.onkiup.linker.evaluator.common;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -10,21 +10,24 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.onkiup.linker.evaluator.api.EvaluationContext;
+import com.onkiup.linker.evaluator.api.RuleEvaluator;
+
 /**
  * Evaluation context that stores its members in memory
  */
-public class MemoryContext extends AbstractContext {
+public class MemoryContext<I> extends AbstractContext<I> {
   private static final Logger logger = LoggerFactory.getLogger(MemoryContext.class);
 
-  private final ConcurrentHashMap<String, Object> values = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, Object> constants = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, Collection<Consumer>> listeners = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<I, Object> values = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<I, Object> constants = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<I, Collection<Consumer>> listeners = new ConcurrentHashMap<>();
 
-  public MemoryContext(EvaluationContext parent, Evaluator owner) {
+  public MemoryContext(EvaluationContext parent, RuleEvaluator owner) {
     super(parent, owner);
   }
 
-  public MemoryContext(EvaluationContext parent, Map<String, Object> constants) {
+  public MemoryContext(EvaluationContext parent, Map<I, Object> constants) {
     this(parent);
     this.constants.putAll(constants);
   }
@@ -38,9 +41,8 @@ public class MemoryContext extends AbstractContext {
   }
 
   @Override
-  public Optional<?> resolve(String key) {
+  public Optional<?> resolveLocally(I key) {
     Object result;
-    key = key.toLowerCase();
     logger.debug("Resolving context key '{}'", key);
     if (constants.containsKey(key)) {
       result = constants.get(key);
@@ -54,20 +56,15 @@ public class MemoryContext extends AbstractContext {
       return Optional.ofNullable(result);
     }
 
-    String finalKey = key;
-    return parent().flatMap(p -> {
-      logger.debug("Asking parent {} to resolve {}", p, finalKey);
-      return p.resolve(finalKey);
-    });
+    return Optional.empty();
   }
 
   @Override
-  public void store(String key, Object value, boolean modifiable, boolean override) {
-    key = key.toLowerCase();
-    ConcurrentHashMap<String, Object> target = modifiable ? values : constants;
+  public void store(I key, Object value, boolean modifiable, boolean override) {
+    ConcurrentHashMap<I, Object> target = modifiable ? values : constants;
 
     if (constants.containsKey(key) && !override) {
-      throw new EvaluationError(invoker().orElse(null), "Unable to override existing context constant '" + key + "'");
+      throw new EvaluationError("Unable to override existing context constant '" + key + "'");
     }
 
     if (value == null) {
@@ -81,7 +78,7 @@ public class MemoryContext extends AbstractContext {
     }
   }
 
-  public void registerMethod(String name, Class definer, String method) {
+  public void registerMethod(I name, Class definer, String method) {
     try {
       store(name, definer.getDeclaredMethod(method));
     } catch (Exception e) {
@@ -91,9 +88,8 @@ public class MemoryContext extends AbstractContext {
   }
 
   @Override
-  public Map<String, Object> getMembers() {
-    Map<String, Object> result = new HashMap<>();
-    parent().map(EvaluationContext::getMembers).ifPresent(result::putAll);
+  public Map<I, Object> members() {
+    Map<I, Object> result = new HashMap<>();
     result.putAll(values);
     result.putAll(constants);
     return result;

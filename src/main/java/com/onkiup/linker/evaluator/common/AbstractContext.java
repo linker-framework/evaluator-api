@@ -1,4 +1,4 @@
-package com.onkiup.linker.evaluator.api;
+package com.onkiup.linker.evaluator.common;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,10 +8,13 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.onkiup.linker.evaluator.api.EvaluationContext;
+import com.onkiup.linker.evaluator.api.RuleEvaluator;
+
 /**
  * Common features for evaluation contexts
  */
-public abstract class AbstractContext implements EvaluationContext {
+public abstract class AbstractContext<I> implements EvaluationContext<I> {
 
   /**
    * Parent context is a context in which this context was created
@@ -23,47 +26,33 @@ public abstract class AbstractContext implements EvaluationContext {
    * Owner token represents a language construct that is associated
    * with this context, i.g. a function definition
    */
-  private Evaluator owner;
-  /**
-   * Creator token represents a language construct that caused
-   * creation of this context, i.g. a function invocation
-   */
-  private Invoker invoker;
+  private RuleEvaluator owner;
+
   /**
    * Contains modifiable context values (variables)
    */
-  private final Map<String, Object> values = new ConcurrentHashMap<>();
+  private final Map<I, Object> values = new ConcurrentHashMap<>();
   /**
    * Contains unmodifiable context values (constants)
    */
-  private final Map<String, Object> constants = new ConcurrentHashMap<>();
+  private final Map<I, Object> constants = new ConcurrentHashMap<>();
 
   public AbstractContext(EvaluationContext parent) {
-    this(parent, null, null);
+    this(parent, null);
   }
 
-  public AbstractContext(EvaluationContext parent, Evaluator owner) {
-    this(parent, owner, null);
-  }
-  
-  public AbstractContext(EvaluationContext parent, Evaluator owner, Invoker invoker) {
+  public AbstractContext(EvaluationContext parent, RuleEvaluator owner) {
     this.parent = parent;
     this.owner = owner;
-    this.invoker = invoker;
   }
 
   @Override
-  public Optional<Evaluator> owner() {
+  public Optional<RuleEvaluator<?, ?>> owner() {
     return Optional.ofNullable(owner);
   }
 
   @Override
-  public Optional<Invoker> invoker() {
-    return Optional.ofNullable(invoker);
-  }
-
-  @Override
-  public Optional<EvaluationContext> parent() {
+  public Optional<EvaluationContext<?>> parent() {
     return Optional.ofNullable(parent);
   }
 
@@ -72,26 +61,40 @@ public abstract class AbstractContext implements EvaluationContext {
     this.parent = parent;
   }
 
-  @Override
-  public Optional<?> resolve(String key) {
+  protected Optional<?> resolveLocally(I key) {
     if (values.containsKey(key)) {
       return Optional.ofNullable(values.get(key));
     } else if (constants.containsKey(key)) {
       return Optional.ofNullable(constants.get(key));
     }
-    return parent().flatMap(p -> p.resolve(key));
+    return Optional.empty();
   }
 
   @Override
-  public boolean containsKey(String key) {
+  public final Optional<?> resolve(I key) {
+    Optional<?> result = resolveLocally(key);
+    if (!result.isPresent()) {
+      Class keyType = keyType();
+
+      result = trace()
+          .filter(parent -> parent.keyType().isAssignableFrom(keyType))
+          .findFirst()
+          .flatMap(parent -> ((EvaluationContext<I>)parent).resolve(key));
+    }
+
+    return result;
+  }
+
+  @Override
+  public boolean containsKey(I key) {
     return values.containsKey(key) || constants.containsKey(key);
   }
 
   @Override
-  public void store(String key, Object value, boolean modifiable, boolean override) {
+  public void store(I key, Object value, boolean modifiable, boolean override) {
     if (constants.containsKey(key)) {
       if (!override) {
-        throw new EvaluationError(invoker().orElse(null), "Unable to override constant `" + key + "`");
+        throw new EvaluationError("Unable to override constant `" + key + "`");
       } else if (modifiable) {
         constants.remove(key);
       }
@@ -105,8 +108,8 @@ public abstract class AbstractContext implements EvaluationContext {
   }
 
   @Override
-  public Map<String,Object> getMembers() {
-    HashMap<String, Object> result = new HashMap<>();
+  public Map<I,Object> members() {
+    HashMap<I, Object> result = new HashMap<>();
     result.putAll(values);
     result.putAll(constants);
     return result;
@@ -123,8 +126,7 @@ public abstract class AbstractContext implements EvaluationContext {
       } while (popped != null && popped != this);
     } catch (NoSuchElementException nsee) {
       all.forEach(EvaluationContext::push);
-      throw new EvaluationError(
-          invoker().orElse(null), "Context corruption detected -- popped " + all.size() + " contexts, none of them was " + this, nsee);
+      throw new EvaluationError("Context corruption detected -- popped " + all.size() + " contexts, none of them was " + this, nsee);
     }
   }
 

@@ -1,4 +1,4 @@
-package com.onkiup.linker.evaluator.api;
+package com.onkiup.linker.evaluator.common;
 
 import java.io.Reader;
 import java.util.Map;
@@ -6,7 +6,9 @@ import java.util.Optional;
 
 import org.yaml.snakeyaml.Yaml;
 
-public class YamlContext extends AbstractContext {
+import com.onkiup.linker.evaluator.api.EvaluationContext;
+
+public class YamlContext extends AbstractContext<String> {
 
   Map<String, Object> values;
 
@@ -22,7 +24,7 @@ public class YamlContext extends AbstractContext {
 
 
   @Override
-  public Optional<?> resolve(String key) {
+  public Optional<?> resolveLocally(String key) {
     if (!values.containsKey(key)) {
       return Optional.empty();
     }
