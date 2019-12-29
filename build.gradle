@@ -42,9 +42,10 @@ dependencies {
     implementation 'com.google.guava:guava:27.0.1-jre'
     implementation group: 'org.yaml', name: 'snakeyaml', version: '1.25'
 
-    compileOnly "com.onkiup:linker-parser:${project.version}"
-    compileOnly "com.onkiup:linker-parser-api:${project.version}"
-    compileOnly "com.onkiup:linker-utils:${project.version}"
+    implementation "com.onkiup:linker-parser:${project.version}"
+    implementation "com.onkiup:linker-parser-api:${project.version}"
+    implementation "com.onkiup:linker-utils:${project.version}"
+    implementation "org.reflections:reflections:0.9.11"
 
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'

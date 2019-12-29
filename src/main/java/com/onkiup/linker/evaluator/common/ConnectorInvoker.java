@@ -3,10 +3,12 @@ package com.onkiup.linker.evaluator.common;
 import java.lang.reflect.Array;
 
 import com.onkiup.linker.evaluator.api.Cacheable;
+import com.onkiup.linker.evaluator.api.Connector;
 import com.onkiup.linker.evaluator.api.Evaluator;
 import com.onkiup.linker.evaluator.api.Invoker;
-import com.onkiup.linker.evaluator.api.Connector;
+import com.onkiup.linker.evaluator.api.RuleEvaluator;
 import com.onkiup.linker.parser.Extension;
+import com.onkiup.linker.parser.Rule;
 import com.onkiup.linker.util.TypeUtils;
 
 /**
@@ -38,7 +40,11 @@ public class ConnectorInvoker<T, R> implements Invoker<R>, Extension<Connector<T
           throw new IllegalStateException("Too many arguments provided to invoke '"+ connector+"'");
         }
       } else if (arguments[i] != null) {
-        argument = TypeUtils.convert(targetArgumentType, arguments[i].value());
+        if (Evaluator.class.isAssignableFrom(targetArgumentType)) {
+          argument = arguments[i];
+        } else {
+          argument = TypeUtils.convert(targetArgumentType, arguments[i].value());
+        }
       }
 
       targetArguments[i] = argument;
@@ -65,12 +71,19 @@ public class ConnectorInvoker<T, R> implements Invoker<R>, Extension<Connector<T
       throw new IllegalArgumentException("Position("+position+") is outside of argument array("+ arguments.length+")");
     }
 
-    Object result = Array.newInstance(targetType.getComponentType(), arguments.length - position);
+    Class componentType = targetType.getComponentType();
+    Object result = Array.newInstance(componentType, arguments.length - position);
     for (int i = position; i < arguments.length; i++) {
       Evaluator argument = arguments[i];
       Object targetArgument = null;
       if (argument != null) {
-        targetArgument = TypeUtils.convert(targetType.getComponentType(), argument.value());
+        if (Evaluator.class.isAssignableFrom(targetType.getComponentType())) {
+          targetArgument = argument;
+        } else if (Rule.class.isAssignableFrom(componentType) && argument instanceof RuleEvaluator && componentType.isInstance(((RuleEvaluator)argument).base())) {
+          targetArgument = ((RuleEvaluator)argument).base();
+        } else {
+          targetArgument = TypeUtils.convert(targetType.getComponentType(), argument.value());
+        }
       }
       Array.set(result, i - position, targetArgument);
     }

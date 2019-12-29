@@ -1,6 +1,7 @@
 package com.onkiup.linker.evaluator.common;
 
 import com.onkiup.linker.evaluator.api.EvaluationContext;
+import com.onkiup.linker.evaluator.api.RuleEvaluator;
 import com.onkiup.linker.parser.Extension;
 import com.onkiup.linker.parser.ParserLocation;
 import com.onkiup.linker.parser.Rule;
@@ -20,7 +21,9 @@ public class EvaluationError extends RuntimeException {
   }
 
   public EvaluationError(String message, Throwable cause) {
-    this(EvaluationContext.currentToken().location(), message, cause);
+    super(message, cause);
+    RuleEvaluator currentToken = EvaluationContext.currentToken();
+    this.location = currentToken == null ? ParserLocation.ZERO : currentToken.location();
   }
 
   public EvaluationError(ParserLocation location, String message, Throwable cause) {

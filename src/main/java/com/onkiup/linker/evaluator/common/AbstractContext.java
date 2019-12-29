@@ -61,7 +61,7 @@ public abstract class AbstractContext<I> implements EvaluationContext<I> {
     this.parent = parent;
   }
 
-  protected Optional<?> resolveLocally(I key) {
+  public Optional<?> resolveLocally(I key) {
     if (values.containsKey(key)) {
       return Optional.ofNullable(values.get(key));
     } else if (constants.containsKey(key)) {
@@ -77,6 +77,7 @@ public abstract class AbstractContext<I> implements EvaluationContext<I> {
       Class keyType = keyType();
 
       result = trace()
+          .filter(parent -> parent != this)
           .filter(parent -> parent.keyType().isAssignableFrom(keyType))
           .findFirst()
           .flatMap(parent -> ((EvaluationContext<I>)parent).resolve(key));
@@ -105,6 +106,14 @@ public abstract class AbstractContext<I> implements EvaluationContext<I> {
     } else {
       values.put(key, value);
     }
+  }
+
+  @Override
+  public void remove(I key, boolean c) {
+    if (c) {
+      constants.remove(key);
+    }
+    values.remove(key);
   }
 
   @Override

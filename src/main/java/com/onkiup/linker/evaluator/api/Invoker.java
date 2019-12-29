@@ -1,5 +1,8 @@
 package com.onkiup.linker.evaluator.api;
 
+import java.util.Arrays;
+
+import com.onkiup.linker.parser.Rule;
 import com.onkiup.linker.util.TypeUtils;
 
 /**
@@ -11,7 +14,6 @@ import com.onkiup.linker.util.TypeUtils;
  * resolving operation (also supported by SAIL). In order to support this, all named arguments need to be stored
  * in a subcontext of invocable's creation context and then passed to the invoker as positional arguments.
  *
- * @param <X> the type of language elements that this invoker can handle
  * @param <R> expected invocation return type
  */
 public interface Invoker<R>  {
@@ -28,6 +30,17 @@ public interface Invoker<R>  {
       return (R)((Cacheable)this).cached();
     }
     return execute(arguments);
+  }
+
+  default R invoke(Object... arguments) {
+    return invoke(Arrays.stream(arguments).map(o -> {
+      if (o instanceof Rule) {
+        return ((Rule)o).as(Evaluator.class);
+      } else if (o instanceof Evaluator) {
+        return (Evaluator) o;
+      }
+      return (Evaluator) () -> o;
+    }).toArray(Evaluator[]::new));
   }
 
   default Class<R> resultType() {

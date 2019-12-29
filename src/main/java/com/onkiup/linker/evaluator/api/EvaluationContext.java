@@ -8,12 +8,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.onkiup.linker.evaluator.common.EvaluationError;
 import com.onkiup.linker.evaluator.common.MemoryContext;
 import com.onkiup.linker.evaluator.utils.ContextIterator;
+import com.onkiup.linker.evaluator.utils.NoContextPresent;
 import com.onkiup.linker.parser.token.PartialToken;
 import com.onkiup.linker.util.SafeConsumer;
 import com.onkiup.linker.util.SafeFunction;
@@ -32,7 +35,7 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
    */
   Optional<?> resolve(I key);
 
-  static <I, O> Optional<O> resolve(Reference<I, O> key) {
+  static <I, O> Optional<O> resolve(Reference<I, O> key) throws NoContextPresent {
     Class referenceIdentityType = TypeUtils.typeParameter(key.getClass(), Reference.class, 0);
     EvaluationContext<?> context = EvaluationContext.get();
     Class contextIdentityType = context.identityType();
@@ -53,13 +56,15 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
    */
   void store(I key, Object value, boolean modifiable, boolean override);
 
+  void remove(I key, boolean constants);
+
   /**
    * Returns all stored in this context values
    * @return a map with keys and values stored in the context
    */
   Map<I, Object> members();
 
-  static Map<Object, Object> allMembers() {
+  static Map<Object, Object> allMembers() throws NoContextPresent {
     Map result = new HashMap();
     EvaluationContext.get().trace()
         .map(EvaluationContext::members)
@@ -108,7 +113,15 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
   }
 
   static <I> void isolated(Class<I> keyType, SafeConsumer<EvaluationContext<I>> code)  {
-    EvaluationContext.get().subcontext(keyType, code);
+    try {
+      EvaluationContext.get().subcontext(keyType, code);
+    } catch (NoContextPresent noContextPresent) {
+      try {
+        code.accept(new MemoryContext<>(null));
+      } catch (Exception e) {
+        throw new EvaluationError("Isolated execution failed", e);
+      }
+    }
   }
 
   default <I, X> X subcontext(Class<I> keyType, SafeFunction<EvaluationContext<I>, X> code) {
@@ -121,7 +134,33 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
   }
 
   static <I, X> X isolated(Class<I> keyType, SafeFunction<EvaluationContext<I>, X> code) {
-    return EvaluationContext.get().subcontext(keyType, code);
+    try {
+      return EvaluationContext.get().subcontext(keyType, code);
+    } catch (NoContextPresent noContextPresent) {
+      try {
+        return code.apply(new MemoryContext<>(null));
+      } catch (Exception e) {
+        throw new EvaluationError("Isolated execution failed", e);
+      }
+    }
+  }
+
+  default void injected(Consumer<EvaluationContext<I>> code) {
+    EvaluationContext.push(this);
+    try (EvaluationContext<I> target  = this) {
+      code.accept(target);
+    } catch (Exception e) {
+      throw new EvaluationError("Failed to execute in injected context", e);
+    }
+  }
+
+  default <X> X injected(Function<EvaluationContext<I>, X> code) {
+    EvaluationContext.push(this);
+    try (EvaluationContext<I> target  = this) {
+      return code.apply(target);
+    } catch (Exception e) {
+      throw new EvaluationError("Failed to execute in injected context", e);
+    }
   }
 
   // --------------------------------------
@@ -144,12 +183,14 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
     stack().push(context);
   }
 
-  static EvaluationContext<?> get() {
-    try {
-      return stack().peek();
-    } catch (Exception e) {
-      throw new EvaluationError("No context is present", e);
+  static EvaluationContext<? extends Object> get() throws NoContextPresent {
+    EvaluationContext result = stack().peek();
+    if (result == null) {
+      result = new MemoryContext();
+      EvaluationContext.push(result);
+      return result;
     }
+    return result;
   }
 
   static EvaluationContext pop() {
@@ -167,14 +208,6 @@ public interface EvaluationContext<I> extends AutoCloseable, Iterable<Evaluation
 
   static void currentToken(RuleEvaluator<?, ?> token) {
     Values.currentToken.set(token);
-  }
-
-  static <I, X> X newContext(Class<I> keyType, SafeFunction<EvaluationContext<I>, X> code) {
-    return EvaluationContext.get().subcontext(keyType, code);
-  }
-
-  static <I> void newContext(Class<I> keyType, SafeConsumer<EvaluationContext<I>> code) {
-    EvaluationContext.get().subcontext(keyType, code);
   }
 
   default StackTraceElement asStackTraceElement() {
